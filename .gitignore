@@ -1,0 +1,19 @@
+# Large data files
+data/
+models/*.pkl
+
+# Secrets
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# Misc
+*.XPT
+columns.txt
+diabete4_codebook.txt
+col_check.txt
