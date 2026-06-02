@@ -42,13 +42,16 @@ def download_if_missing() -> None:
     DATA_DIR.mkdir(exist_ok=True)
     setup_kaggle_credentials()
 
-    # Import after credentials are written so the library picks them up
-    from kaggle.api.kaggle_api_extended import KaggleApiExtended
-    api = KaggleApiExtended()
-    api.authenticate()
+    # Set credentials as env vars — works regardless of kaggle version
+    creds = json.loads((Path.home() / ".kaggle" / "kaggle.json").read_text())
+    os.environ["KAGGLE_USERNAME"] = creds["username"]
+    os.environ["KAGGLE_KEY"] = creds["key"]
+
+    import kaggle
+    kaggle.api.authenticate()
 
     print(f"Downloading {DATASET_OWNER}/{DATASET_NAME} from Kaggle…")
-    api.dataset_download_files(
+    kaggle.api.dataset_download_files(
         f"{DATASET_OWNER}/{DATASET_NAME}",
         path=str(DATA_DIR),
         unzip=True,
