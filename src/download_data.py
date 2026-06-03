@@ -13,8 +13,14 @@ FILES = {
     "models/xgb_diabetes_transformer.pkl":   "xgb_diabetes_transformer.pkl",
     "models/xgb_heart.pkl":                  "xgb_heart.pkl",
     "models/xgb_heart_transformer.pkl":      "xgb_heart_transformer.pkl",
-    "models/xgb_copd.pkl":                   "xgb_copd.pkl",
-    "models/xgb_copd_transformer.pkl":       "xgb_copd_transformer.pkl",
+    "models/xgb_copd.pkl":                      "xgb_copd.pkl",
+    "models/xgb_copd_transformer.pkl":          "xgb_copd_transformer.pkl",
+    "models/xgb_arthritis.pkl":                 "xgb_arthritis.pkl",
+    "models/xgb_arthritis_transformer.pkl":     "xgb_arthritis_transformer.pkl",
+    "models/xgb_depression.pkl":                "xgb_depression.pkl",
+    "models/xgb_depression_transformer.pkl":    "xgb_depression_transformer.pkl",
+    "models/xgb_asthma.pkl":                    "xgb_asthma.pkl",
+    "models/xgb_asthma_transformer.pkl":        "xgb_asthma_transformer.pkl",
 }
 
 

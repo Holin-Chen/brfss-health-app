@@ -29,9 +29,12 @@ DASHBOARD_PATH = "data/dashboard.csv"
 MODEL_PATH = "models/xgb_diabetes.pkl"
 
 DISEASE_CONFIG = {
-    "Diabetes":      {"col": "DIABETE4",  "model": "models/xgb_diabetes.pkl", "transformer": "models/xgb_diabetes_transformer.pkl", "at_risk_label": "Yes", "pop_avg": 14.4},
-    "Heart Disease": {"col": "CVDCRHD4",  "model": "models/xgb_heart.pkl",    "transformer": "models/xgb_heart_transformer.pkl",    "at_risk_label": "Yes", "pop_avg": 6.3},
-    "COPD":          {"col": "CHCCOPD3",  "model": "models/xgb_copd.pkl",      "transformer": "models/xgb_copd_transformer.pkl",     "at_risk_label": "Yes", "pop_avg": 8.1},
+    "Diabetes":      {"col": "DIABETE4",  "model": "models/xgb_diabetes.pkl",   "transformer": "models/xgb_diabetes_transformer.pkl",   "at_risk_label": "Yes", "pop_avg": 14.4},
+    "Heart Disease": {"col": "CVDCRHD4",  "model": "models/xgb_heart.pkl",      "transformer": "models/xgb_heart_transformer.pkl",      "at_risk_label": "Yes", "pop_avg": 6.3},
+    "COPD":          {"col": "CHCCOPD3",  "model": "models/xgb_copd.pkl",       "transformer": "models/xgb_copd_transformer.pkl",       "at_risk_label": "Yes", "pop_avg": 8.1},
+    "Arthritis":     {"col": "HAVARTH4",  "model": "models/xgb_arthritis.pkl",  "transformer": "models/xgb_arthritis_transformer.pkl",  "at_risk_label": "Yes", "pop_avg": 33.0},
+    "Depression":    {"col": "ADDEPEV3",  "model": "models/xgb_depression.pkl", "transformer": "models/xgb_depression_transformer.pkl", "at_risk_label": "Yes", "pop_avg": 22.0},
+    "Asthma":        {"col": "ASTHMA3",   "model": "models/xgb_asthma.pkl",     "transformer": "models/xgb_asthma_transformer.pkl",     "at_risk_label": "Yes", "pop_avg": 16.0},
 }
 
 FIPS_TO_STATE = {

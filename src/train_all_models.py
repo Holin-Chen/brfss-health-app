@@ -50,11 +50,34 @@ TARGETS = {
     },
     "copd": {
         "col": "CHCCOPD3",
-        # 1=Yes, 2=No
         "at_risk": {1},
         "not_risk": {2},
         "model_path": "models/xgb_copd.pkl",
         "shap_path": "models/shap_copd.png",
+    },
+    "arthritis": {
+        "col": "HAVARTH4",
+        # 1=Yes, 2=No
+        "at_risk": {1},
+        "not_risk": {2},
+        "model_path": "models/xgb_arthritis.pkl",
+        "shap_path": "models/shap_arthritis.png",
+    },
+    "depression": {
+        "col": "ADDEPEV3",
+        # 1=Yes, 2=No
+        "at_risk": {1},
+        "not_risk": {2},
+        "model_path": "models/xgb_depression.pkl",
+        "shap_path": "models/shap_depression.png",
+    },
+    "asthma": {
+        "col": "ASTHMA3",
+        # 1=Yes, 2=No
+        "at_risk": {1},
+        "not_risk": {2},
+        "model_path": "models/xgb_asthma.pkl",
+        "shap_path": "models/shap_asthma.png",
     },
 }
 
@@ -210,8 +233,8 @@ def build_dashboard_csv(df_raw: pd.DataFrame) -> None:
         9: np.nan,
     }
 
-    keep = ["DIABETE4", "CVDCRHD4", "CHCCOPD3", "_STATE",
-            "_AGEG5YR", "_BMI5CAT", "EXERANY2", "SEXVAR", "_RACE", "INCOME3", "EDUCA"]
+    keep = ["DIABETE4", "CVDCRHD4", "CHCCOPD3", "HAVARTH4", "ADDEPEV3", "ASTHMA3",
+            "_STATE", "_AGEG5YR", "_BMI5CAT", "EXERANY2", "SEXVAR", "_RACE", "INCOME3", "EDUCA"]
     df = df_raw[[c for c in keep if c in df_raw.columns]].copy()
 
     AGE_MAP = {
@@ -231,10 +254,10 @@ def build_dashboard_csv(df_raw: pd.DataFrame) -> None:
     df["EXERANY2"] = pd.to_numeric(df["EXERANY2"], errors="coerce").map(EXERCISE_MAP)
 
     # Decode disease targets
-    df["CVDCRHD4"] = pd.to_numeric(df["CVDCRHD4"], errors="coerce").map(
-        {1: "Yes", 2: "No", 7: np.nan, 9: np.nan})
-    df["CHCCOPD3"] = pd.to_numeric(df["CHCCOPD3"], errors="coerce").map(
-        {1: "Yes", 2: "No", 7: np.nan, 9: np.nan})
+    yes_no_map = {1: "Yes", 2: "No", 7: np.nan, 9: np.nan}
+    for col in ["CVDCRHD4", "CHCCOPD3", "HAVARTH4", "ADDEPEV3", "ASTHMA3"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").map(yes_no_map)
     df["DIABETE4"] = pd.to_numeric(df["DIABETE4"], errors="coerce").map(
         {1: "Yes", 2: "Yes_pregnant_only", 3: "No", 4: "No_prediabetes", 7: np.nan, 9: np.nan})
 
