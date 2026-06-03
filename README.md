@@ -12,13 +12,13 @@ A public health web application that visualizes chronic disease prevalence acros
 ### 🗺️ Population Dashboard
 - **US choropleth map** of disease prevalence by state
 - **Demographic breakdowns** across 6 dimensions: Age, Sex, Race/Ethnicity, Income, Education, BMI & Exercise
-- Switchable between **Diabetes, Heart Disease, and COPD**
+- Switchable between **6 diseases**: Diabetes, Heart Disease, COPD, Arthritis, Depression, Asthma
 
 ### 🧮 Individual Risk Calculator
 - Input form for personal health behaviors and conditions
 - **XGBoost model** returns a risk score (%) with a gauge showing your score vs. the population average
 - **SHAP waterfall chart** explaining the top 10 factors driving your score
-- Switchable between **Diabetes, Heart Disease, and COPD**
+- Switchable between **6 diseases**: Diabetes, Heart Disease, COPD, Arthritis, Depression, Asthma
 
 ### 📊 Model Comparison
 - Side-by-side **ROC-AUC comparison** of XGBoost, Random Forest, and LASSO across all three diseases
@@ -45,6 +45,9 @@ A public health web application that visualizes chronic disease prevalence acros
 | Diabetes | 0.801 | 0.798 | 0.794 |
 | Heart Disease | 0.816 | 0.813 | 0.820 |
 | COPD | 0.828 | 0.825 | 0.830 |
+| Arthritis | 0.810 | 0.804 | 0.803 |
+| Depression | 0.820 | 0.815 | 0.805 |
+| Asthma | 0.689 | 0.691 | 0.694 |
 
 > XGBoost is used for deployment (SHAP TreeExplainer support). All models trained on a 100K stratified subsample; final XGBoost fit on full data.
 
