@@ -1,5 +1,6 @@
-"""Download pre-processed app files from Hugging Face Hub if not present."""
+"""Download pre-processed app files from Hugging Face Hub."""
 
+import shutil
 from pathlib import Path
 from huggingface_hub import hf_hub_download
 
@@ -17,21 +18,29 @@ FILES = {
 }
 
 
-def download_if_missing() -> None:
+def download_all() -> None:
+    """Download all files from HF Hub, using HF's ETag cache to avoid re-downloading unchanged files."""
     for local_path, repo_filename in FILES.items():
         path = Path(local_path)
-        if path.exists():
-            continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        print(f"Downloading {repo_filename} from Hugging Face…")
-        downloaded = hf_hub_download(
+        print(f"Checking {repo_filename}…")
+        # hf_hub_download uses ETags: only fetches if remote file changed
+        cached = hf_hub_download(
             repo_id=HF_REPO,
             filename=repo_filename,
             repo_type="dataset",
-            local_dir=str(path.parent),
         )
-        print(f"Saved to {downloaded}")
+        # Copy from HF cache to expected local path
+        if not path.exists() or path.stat().st_size != Path(cached).stat().st_size:
+            shutil.copy2(cached, path)
+            print(f"  Updated {local_path}")
+        else:
+            print(f"  Up to date")
+
+
+# Keep old name so app.py import still works
+download_if_missing = download_all
 
 
 if __name__ == "__main__":
-    download_if_missing()
+    download_all()
