@@ -129,7 +129,7 @@ def train_and_evaluate(name: str, cfg: dict, df_raw: pd.DataFrame) -> dict:
     cat_names = transformer.named_transformers_["cat"]["ohe"].get_feature_names_out(cat_cols).tolist()
     feature_names = num_cols + cat_names
     scale_pos_weight = (y == 0).sum() / (y == 1).sum()
-    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     auc_results = {}
 
     # XGBoost (subsample for CV, full for final fit)
