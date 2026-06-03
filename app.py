@@ -192,30 +192,38 @@ if page == "🗺️ Population Dashboard":
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["Age","Sex","Race/Ethnicity","Income","Education","BMI & Exercise","📊 Model Comparison"])
 
     with tab1:
-        st.plotly_chart(prevalence_bar(df, "age_label", f"{disease} by Age Group", order=age_order), width="stretch")
+        st.plotly_chart(prevalence_bar(df.rename(columns={"age_label": "Age Group"}),
+                                       "Age Group", f"{disease} by Age Group", order=age_order), width="stretch")
 
     with tab2:
-        st.plotly_chart(prevalence_bar(df, "SEXVAR", f"{disease} by Sex", color_scale="Blues"), width="stretch")
+        st.plotly_chart(prevalence_bar(df.rename(columns={"SEXVAR": "Sex"}),
+                                       "Sex", f"{disease} by Sex", color_scale="Blues"), width="stretch")
 
     with tab3:
-        st.plotly_chart(prevalence_bar(df, "_RACE", f"{disease} by Race/Ethnicity", color_scale="Purples", height=380), width="stretch")
+        st.plotly_chart(prevalence_bar(df.rename(columns={"_RACE": "Race / Ethnicity"}),
+                                       "Race / Ethnicity", f"{disease} by Race/Ethnicity",
+                                       color_scale="Purples", height=380), width="stretch")
 
     with tab4:
-        st.plotly_chart(prevalence_bar(df, "INCOME3", f"{disease} by Household Income",
+        st.plotly_chart(prevalence_bar(df.rename(columns={"INCOME3": "Household Income"}),
+                                       "Household Income", f"{disease} by Household Income",
                                        order=INCOME_ORDER, color_scale="Greens", height=380), width="stretch")
 
     with tab5:
-        st.plotly_chart(prevalence_bar(df, "EDUCA", f"{disease} by Education Level",
+        st.plotly_chart(prevalence_bar(df.rename(columns={"EDUCA": "Education Level"}),
+                                       "Education Level", f"{disease} by Education Level",
                                        order=EDUCA_ORDER, color_scale="Oranges"), width="stretch")
 
     with tab6:
         c1, c2 = st.columns(2)
         with c1:
-            bmi_order = ["Underweight","Normal","Overweight","Obese"]
-            st.plotly_chart(prevalence_bar(df, "_BMI5CAT", f"{disease} by BMI Category",
+            bmi_order = ["Underweight", "Normal", "Overweight", "Obese"]
+            st.plotly_chart(prevalence_bar(df.rename(columns={"_BMI5CAT": "BMI Category"}),
+                                           "BMI Category", f"{disease} by BMI Category",
                                            order=bmi_order, color_scale="Blues"), width="stretch")
         with c2:
-            st.plotly_chart(prevalence_bar(df, "EXERANY2", f"{disease} by Exercise Habit",
+            st.plotly_chart(prevalence_bar(df.rename(columns={"EXERANY2": "Exercises (past 30 days)"}),
+                                           "Exercises (past 30 days)", f"{disease} by Exercise Habit",
                                            color_scale="Greens"), width="stretch")
 
     with tab7:

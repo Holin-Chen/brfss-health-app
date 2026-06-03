@@ -214,10 +214,21 @@ def build_dashboard_csv(df_raw: pd.DataFrame) -> None:
             "_AGEG5YR", "_BMI5CAT", "EXERANY2", "SEXVAR", "_RACE", "INCOME3", "EDUCA"]
     df = df_raw[[c for c in keep if c in df_raw.columns]].copy()
 
+    AGE_MAP = {
+        1: "18-24", 2: "25-29", 3: "30-34", 4: "35-39", 5: "40-44",
+        6: "45-49", 7: "50-54", 8: "55-59", 9: "60-64", 10: "65-69",
+        11: "70-74", 12: "75-79", 13: "80+", 14: np.nan,
+    }
+    BMI_MAP = {1: "Underweight", 2: "Normal", 3: "Overweight", 4: "Obese"}
+    EXERCISE_MAP = {1: "Yes", 2: "No", 7: np.nan, 9: np.nan}
+
     df["SEXVAR"]   = pd.to_numeric(df["SEXVAR"],   errors="coerce").map(SEX_MAP)
     df["_RACE"]    = pd.to_numeric(df["_RACE"],    errors="coerce").map(RACE_MAP)
     df["INCOME3"]  = pd.to_numeric(df["INCOME3"],  errors="coerce").map(INCOME_MAP)
     df["EDUCA"]    = pd.to_numeric(df["EDUCA"],    errors="coerce").map(EDUCA_MAP)
+    df["_AGEG5YR"] = pd.to_numeric(df["_AGEG5YR"], errors="coerce").map(AGE_MAP)
+    df["_BMI5CAT"] = pd.to_numeric(df["_BMI5CAT"], errors="coerce").map(BMI_MAP)
+    df["EXERANY2"] = pd.to_numeric(df["EXERANY2"], errors="coerce").map(EXERCISE_MAP)
 
     # Decode disease targets
     df["CVDCRHD4"] = pd.to_numeric(df["CVDCRHD4"], errors="coerce").map(
