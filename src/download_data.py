@@ -6,9 +6,13 @@ from huggingface_hub import hf_hub_download
 HF_REPO = "holinchen/brfss-health-app-data"
 
 FILES = {
-    "data/dashboard.csv":      "dashboard.csv",
-    "models/transformer.pkl":  "transformer.pkl",
-    "models/xgb_diabetes.pkl": "xgb_diabetes.pkl",
+    "data/dashboard.csv":                    "dashboard.csv",
+    "models/xgb_diabetes.pkl":               "xgb_diabetes.pkl",
+    "models/xgb_diabetes_transformer.pkl":   "xgb_diabetes_transformer.pkl",
+    "models/xgb_heart.pkl":                  "xgb_heart.pkl",
+    "models/xgb_heart_transformer.pkl":      "xgb_heart_transformer.pkl",
+    "models/xgb_copd.pkl":                   "xgb_copd.pkl",
+    "models/xgb_copd_transformer.pkl":       "xgb_copd_transformer.pkl",
 }
 
 
