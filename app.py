@@ -227,7 +227,7 @@ if page == "🗺️ Population Dashboard":
                                            color_scale="Greens"), width="stretch")
 
     with tab7:
-        st.subheader("Model Comparison — 3-Fold Cross-Validated ROC-AUC")
+        st.subheader("Model Comparison — 5-Fold Cross-Validated ROC-AUC")
         st.caption("XGBoost vs Random Forest vs LASSO (Logistic Regression L1) across all three diseases")
         comparison = load_comparison()
 
