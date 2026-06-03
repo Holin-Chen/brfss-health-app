@@ -1,5 +1,6 @@
-"""Train XGBoost models for diabetes, heart disease, and COPD."""
+﻿"""Train XGBoost, Random Forest, and LASSO models for diabetes, heart disease, and COPD."""
 
+import json
 import numpy as np
 import pandas as pd
 import joblib
@@ -8,11 +9,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import shap
 from sklearn.model_selection import StratifiedKFold, cross_validate
-from sklearn.metrics import roc_auc_score, classification_report
+from sklearn.metrics import roc_auc_score
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
 
 RAW_PATH = "data/brfss_survey_data_2024.csv"
@@ -84,30 +87,24 @@ def build_transformer(num_cols, cat_cols):
     ])
 
 
-def train_and_evaluate(name: str, cfg: dict, df_raw: pd.DataFrame) -> None:
+def train_and_evaluate(name: str, cfg: dict, df_raw: pd.DataFrame) -> dict:
+    import gc
     print(f"\n{'='*60}")
     print(f"Training: {name.upper()}")
 
     target_col = cfg["col"]
-
-    # Build feature columns excluding current target to avoid leakage
-    cat_cols = [c for c in CATEGORICAL_FEATURES
-                if c in df_raw.columns and c != target_col]
+    cat_cols = [c for c in CATEGORICAL_FEATURES if c in df_raw.columns and c != target_col]
     num_cols = [c for c in NUMERIC_FEATURES if c in df_raw.columns]
 
-    use_cols = num_cols + cat_cols + [target_col]
-    df = df_raw[use_cols].copy()
-
-    # Encode target
+    # Build feature matrix — work on subsample only to stay within memory
+    df = df_raw[num_cols + cat_cols + [target_col]].copy()
     y_raw = encode_target(df[target_col], cfg["at_risk"], cfg["not_risk"])
     mask = y_raw.notna()
     df = df[mask].copy()
-    y = y_raw[mask].astype(int)
-    print(f"Rows: {len(y):,}  |  at-risk: {y.sum():,} ({y.mean()*100:.1f}%)")
+    y_full = y_raw[mask].astype(int)
+    df.drop(columns=[target_col], inplace=True)
+    print(f"Rows: {len(y_full):,}  |  at-risk: {y_full.sum():,} ({y_full.mean()*100:.1f}%)")
 
-    df = df.drop(columns=[target_col])
-
-    # Clean refused codes
     for col in num_cols + cat_cols:
         if col in df.columns:
             df[col] = clean_refused(df[col])
@@ -115,33 +112,64 @@ def train_and_evaluate(name: str, cfg: dict, df_raw: pd.DataFrame) -> None:
         if col in df.columns:
             df[col] = df[col].astype("object")
 
+    # Subsample 100K rows — sufficient for all three models
+    sub_idx = np.random.RandomState(42).choice(len(y_full), size=min(100_000, len(y_full)), replace=False)
+    df_sub = df.iloc[sub_idx].copy()
+    y_sub = y_full.iloc[sub_idx].reset_index(drop=True)
+    del df; gc.collect()
+
     transformer = build_transformer(num_cols, cat_cols)
-    X = transformer.fit_transform(df[num_cols + cat_cols])
+    X_sub = transformer.fit_transform(df_sub[num_cols + cat_cols])
+    del df_sub; gc.collect()
+
+    # Aliases used below
+    X = X_sub
+    y = y_sub
 
     cat_names = transformer.named_transformers_["cat"]["ohe"].get_feature_names_out(cat_cols).tolist()
     feature_names = num_cols + cat_names
-
-    # Cross-validation
     scale_pos_weight = (y == 0).sum() / (y == 1).sum()
-    model = XGBClassifier(
+    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+    auc_results = {}
+
+    # XGBoost (subsample for CV, full for final fit)
+    print("  [XGBoost]", end=" ")
+    xgb = XGBClassifier(
         n_estimators=300, max_depth=6, learning_rate=0.05,
         subsample=0.8, colsample_bytree=0.8,
         scale_pos_weight=scale_pos_weight,
-        eval_metric="auc", random_state=42, n_jobs=-1, verbosity=0,
+        eval_metric="auc", random_state=42, n_jobs=1, verbosity=0,
     )
-    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-    cv_res = cross_validate(model, X, y, cv=cv, scoring=["roc_auc", "recall"], n_jobs=1)
-    print(f"CV ROC-AUC: {cv_res['test_roc_auc'].mean():.4f} ± {cv_res['test_roc_auc'].std():.4f}")
-    print(f"CV Recall : {cv_res['test_recall'].mean():.4f} ± {cv_res['test_recall'].std():.4f}")
+    cv_xgb = cross_validate(xgb, X_sub, y_sub, cv=cv, scoring="roc_auc", n_jobs=1)
+    auc_results["XGBoost"] = round(float(np.nanmean(cv_xgb["test_score"])), 4)
+    print(f"CV AUC={auc_results['XGBoost']:.4f}")
 
-    # Full fit
-    model.fit(X, y)
-    y_prob = model.predict_proba(X)[:, 1]
-    print(f"Train ROC-AUC: {roc_auc_score(y, y_prob):.4f}")
+    # Random Forest (subsample)
+    print("  [Random Forest]", end=" ")
+    rf = RandomForestClassifier(n_estimators=100, max_depth=10, class_weight="balanced", random_state=42, n_jobs=1)
+    cv_rf = cross_validate(rf, X, y, cv=cv, scoring="roc_auc", n_jobs=1)
+    auc_results["Random Forest"] = round(float(np.nanmean(cv_rf["test_score"])), 4)
+    print(f"CV AUC={auc_results['Random Forest']:.4f}")
+
+    # LASSO (subsample)
+    print("  [LASSO]", end=" ")
+    lasso = Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", LogisticRegression(solver="liblinear", penalty="l1", C=0.1,
+                                   class_weight="balanced", random_state=42, max_iter=1000)),
+    ])
+    cv_lasso = cross_validate(lasso, X, y, cv=cv, scoring="roc_auc", n_jobs=1)
+    auc_results["LASSO"] = round(float(np.nanmean(cv_lasso["test_score"])), 4)
+    print(f"CV AUC={auc_results['LASSO']:.4f}")
+
+    # Full fit XGBoost for deployment
+    xgb.fit(X, y)
+    y_prob = xgb.predict_proba(X)[:, 1]
+    print(f"  XGBoost full-fit AUC: {roc_auc_score(y, y_prob):.4f}")
 
     # SHAP summary
     sample_idx = np.random.RandomState(42).choice(len(X), size=min(3000, len(X)), replace=False)
-    explainer = shap.TreeExplainer(model)
+    explainer = shap.TreeExplainer(xgb)
     shap_vals = explainer.shap_values(X[sample_idx])
     plt.figure(figsize=(10, 8))
     shap.summary_plot(shap_vals, X[sample_idx], feature_names=feature_names, show=False, max_display=15)
@@ -149,15 +177,17 @@ def train_and_evaluate(name: str, cfg: dict, df_raw: pd.DataFrame) -> None:
     plt.savefig(cfg["shap_path"], dpi=120, bbox_inches="tight")
     plt.close()
 
-    # Save model + transformer
-    joblib.dump(model, cfg["model_path"])
+    # Save XGBoost model + transformer
+    joblib.dump(xgb, cfg["model_path"])
     joblib.dump({
         "transformer": transformer,
         "feature_names": feature_names,
         "numeric_cols": num_cols,
         "categorical_cols": cat_cols,
     }, cfg["model_path"].replace(".pkl", "_transformer.pkl"))
-    print(f"Saved: {cfg['model_path']}")
+    print(f"  Saved: {cfg['model_path']}")
+    del X, y, xgb, shap_vals; gc.collect()
+    return auc_results
 
 
 def build_dashboard_csv(df_raw: pd.DataFrame) -> None:
@@ -203,7 +233,7 @@ def build_dashboard_csv(df_raw: pd.DataFrame) -> None:
 
 
 def main():
-    print("Loading raw data in chunks…")
+    print("Loading raw data in chunksâ€¦")
     all_cols = list(set(
         NUMERIC_FEATURES + CATEGORICAL_FEATURES +
         [cfg["col"] for cfg in TARGETS.values()] +
@@ -215,8 +245,15 @@ def main():
     df_raw = pd.concat(chunks, ignore_index=True)
     print(f"Loaded: {df_raw.shape[0]:,} rows, {df_raw.shape[1]} columns")
 
+    comparison = {}
     for name, cfg in TARGETS.items():
-        train_and_evaluate(name, cfg, df_raw)
+        comparison[name] = train_and_evaluate(name, cfg, df_raw)
+
+    with open("models/model_comparison.json", "w") as f:
+        json.dump(comparison, f, indent=2)
+    print("\nModel comparison saved to models/model_comparison.json")
+    for disease, aucs in comparison.items():
+        print(f"  {disease}: {aucs}")
 
     build_dashboard_csv(df_raw)
     print("\nAll done.")
@@ -224,3 +261,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

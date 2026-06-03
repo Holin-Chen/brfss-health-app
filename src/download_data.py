@@ -7,6 +7,7 @@ HF_REPO = "holinchen/brfss-health-app-data"
 
 FILES = {
     "data/dashboard.csv":                    "dashboard.csv",
+    "models/model_comparison.json":          "model_comparison.json",
     "models/xgb_diabetes.pkl":               "xgb_diabetes.pkl",
     "models/xgb_diabetes_transformer.pkl":   "xgb_diabetes_transformer.pkl",
     "models/xgb_heart.pkl":                  "xgb_heart.pkl",

@@ -91,6 +91,12 @@ def readable_feature(name: str) -> str:
     return FEATURE_LABELS.get(name, name)
 
 # ── Loaders (cached) ───────────────────────────────────────────────────────────
+@st.cache_data(show_spinner="Loading model comparison…")
+def load_comparison() -> dict:
+    import json
+    with open("models/model_comparison.json") as f:
+        return json.load(f)
+
 @st.cache_data(show_spinner="Loading survey data…")
 def load_dashboard() -> pd.DataFrame:
     df = pd.read_csv(DASHBOARD_PATH, low_memory=False)
@@ -183,7 +189,7 @@ if page == "🗺️ Population Dashboard":
 
     age_order = ["18-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-64","65-69","70-74","75-79","80+"]
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Age","Sex","Race/Ethnicity","Income","Education","BMI & Exercise"])
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["Age","Sex","Race/Ethnicity","Income","Education","BMI & Exercise","📊 Model Comparison"])
 
     with tab1:
         st.plotly_chart(prevalence_bar(df, "age_label", f"{disease} by Age Group", order=age_order), width="stretch")
@@ -211,6 +217,39 @@ if page == "🗺️ Population Dashboard":
         with c2:
             st.plotly_chart(prevalence_bar(df, "EXERANY2", f"{disease} by Exercise Habit",
                                            color_scale="Greens"), width="stretch")
+
+    with tab7:
+        st.subheader("Model Comparison — 3-Fold Cross-Validated ROC-AUC")
+        st.caption("XGBoost vs Random Forest vs LASSO (Logistic Regression L1) across all three diseases")
+        comparison = load_comparison()
+
+        # Build long-form dataframe
+        rows = []
+        for dis, aucs in comparison.items():
+            for model_name, auc in aucs.items():
+                rows.append({"Disease": dis, "Model": model_name, "ROC-AUC": auc})
+        comp_df = pd.DataFrame(rows)
+
+        # Grouped bar chart
+        fig_comp = px.bar(
+            comp_df, x="Disease", y="ROC-AUC", color="Model",
+            barmode="group", text="ROC-AUC",
+            color_discrete_map={"XGBoost": "#0066CC", "Random Forest": "#2ca02c", "LASSO": "#ff7f0e"},
+            title="Cross-Validated ROC-AUC by Disease and Model",
+            range_y=[0.5, 1.0],
+        )
+        fig_comp.update_traces(texttemplate="%{text:.4f}", textposition="outside")
+        fig_comp.update_layout(height=450, yaxis_title="ROC-AUC (higher = better)")
+        st.plotly_chart(fig_comp, width="stretch")
+
+        # Table view
+        pivot = comp_df.pivot(index="Model", columns="Disease", values="ROC-AUC").reset_index()
+        st.dataframe(pivot, hide_index=True, width="stretch")
+
+        st.caption(
+            "ROC-AUC measures how well each model distinguishes at-risk vs not-at-risk individuals. "
+            "0.5 = random chance, 1.0 = perfect. Values above 0.8 are considered good for population health screening."
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
