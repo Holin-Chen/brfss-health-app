@@ -1,63 +1,31 @@
-"""Download BRFSS 2024 data from Kaggle if not already present."""
+"""Download pre-processed app files from Hugging Face Hub if not present."""
 
-import json
-import os
 from pathlib import Path
+from huggingface_hub import hf_hub_download
 
+HF_REPO = "holinchen/brfss-health-app-data"
 
-DATASET_OWNER = "rudritarahman"
-DATASET_NAME = "cdc-brfss-survey-data-2024"
-DATA_DIR = Path("data")
-RAW_CSV = DATA_DIR / "brfss_survey_data_2024.csv"
-
-
-def setup_kaggle_credentials() -> None:
-    """Write kaggle.json from Streamlit secrets when running in the cloud."""
-    kaggle_dir = Path.home() / ".kaggle"
-    creds_path = kaggle_dir / "kaggle.json"
-    if creds_path.exists():
-        return  # already configured (local dev)
-
-    try:
-        import streamlit as st
-        username = st.secrets["kaggle"]["username"]
-        key = st.secrets["kaggle"]["key"]
-    except Exception as e:
-        raise RuntimeError(
-            "Kaggle credentials not found. Add [kaggle] username/key to Streamlit secrets."
-        ) from e
-
-    kaggle_dir.mkdir(parents=True, exist_ok=True)
-    creds_path.write_text(json.dumps({"username": username, "key": key}))
-    creds_path.chmod(0o600)
-    # Tell the kaggle library where to find credentials
-    os.environ["KAGGLE_CONFIG_DIR"] = str(kaggle_dir)
+FILES = {
+    "data/dashboard.csv":      "dashboard.csv",
+    "models/transformer.pkl":  "transformer.pkl",
+    "models/xgb_diabetes.pkl": "xgb_diabetes.pkl",
+}
 
 
 def download_if_missing() -> None:
-    """Download and unzip dataset from Kaggle if CSV is not present."""
-    if RAW_CSV.exists():
-        return
-
-    DATA_DIR.mkdir(exist_ok=True)
-    setup_kaggle_credentials()
-
-    # Set credentials as env vars — works regardless of kaggle version
-    creds = json.loads((Path.home() / ".kaggle" / "kaggle.json").read_text())
-    os.environ["KAGGLE_USERNAME"] = creds["username"]
-    os.environ["KAGGLE_KEY"] = creds["key"]
-
-    import kaggle
-    kaggle.api.authenticate()
-
-    print(f"Downloading {DATASET_OWNER}/{DATASET_NAME} from Kaggle…")
-    kaggle.api.dataset_download_files(
-        f"{DATASET_OWNER}/{DATASET_NAME}",
-        path=str(DATA_DIR),
-        unzip=True,
-        quiet=False,
-    )
-    print("Download complete.")
+    for local_path, repo_filename in FILES.items():
+        path = Path(local_path)
+        if path.exists():
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        print(f"Downloading {repo_filename} from Hugging Face…")
+        downloaded = hf_hub_download(
+            repo_id=HF_REPO,
+            filename=repo_filename,
+            repo_type="dataset",
+            local_dir=str(path.parent),
+        )
+        print(f"Saved to {downloaded}")
 
 
 if __name__ == "__main__":

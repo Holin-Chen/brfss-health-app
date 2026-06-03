@@ -1,16 +1,11 @@
 """BRFSS Population Health Risk App — Streamlit (2 pages)."""
 
-import subprocess, sys
 from pathlib import Path
 
-# Bootstrap: download data and run preprocessing if first deploy
+# Bootstrap: download pre-processed files from Hugging Face Hub
 def _bootstrap():
     from src.download_data import download_if_missing
     download_if_missing()
-    if not Path("data/brfss_clean.csv").exists():
-        subprocess.run([sys.executable, "src/phase1_eda.py"], check=True)
-    if not Path("data/features.pkl").exists():
-        subprocess.run([sys.executable, "src/preprocess.py"], check=True)
 
 _bootstrap()
 
@@ -30,8 +25,8 @@ st.set_page_config(
 )
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-CLEAN_PATH = "data/brfss_clean.csv"
-FEATURES_PATH = "data/features.pkl"
+DASHBOARD_PATH = "data/dashboard.csv"
+TRANSFORMER_PATH = "models/transformer.pkl"
 MODEL_PATH = "models/xgb_diabetes.pkl"
 
 FIPS_TO_STATE = {
@@ -55,10 +50,69 @@ AGE_LABELS = {
     11:"70-74",12:"75-79",13:"80+",
 }
 
+# Human-readable labels for SHAP feature names
+FEATURE_LABELS = {
+    # Numeric
+    "_BMI5":            "BMI (numeric)",
+    "_AGEG5YR":         "Age Group",
+    "POORHLTH":         "Days Poor Health Limited Activity",
+    "PHYSHLTH":         "Days Physical Health Not Good",
+    "MENTHLTH":         "Days Mental Health Not Good",
+    "ALCDAY4":          "Days Had Alcohol (past 30 days)",
+    "CHILDREN":         "Number of Children in Household",
+    "INCOME3":          "Household Income Level",
+    "EDUCA":            "Education Level",
+    # Categorical — one-hot encoded values
+    "_BMI5CAT_1.0":     "BMI: Underweight",
+    "_BMI5CAT_2.0":     "BMI: Normal Weight",
+    "_BMI5CAT_3.0":     "BMI: Overweight",
+    "_BMI5CAT_4.0":     "BMI: Obese",
+    "EXERANY2_1.0":     "Exercises Regularly: Yes",
+    "EXERANY2_2.0":     "Exercises Regularly: No",
+    "SMOKDAY2_1.0":     "Smokes Every Day",
+    "SMOKDAY2_2.0":     "Smokes Some Days",
+    "SMOKDAY2_3.0":     "Does Not Smoke",
+    "GENHLTH_1.0":      "General Health: Excellent",
+    "GENHLTH_2.0":      "General Health: Very Good",
+    "GENHLTH_3.0":      "General Health: Good",
+    "GENHLTH_4.0":      "General Health: Fair",
+    "GENHLTH_5.0":      "General Health: Poor",
+    "CVDCRHD4_1.0":     "Coronary Heart Disease: Yes",
+    "CVDCRHD4_2.0":     "Coronary Heart Disease: No",
+    "CHCOCNC1_1.0":     "Any Cancer: Yes",
+    "CHCOCNC1_2.0":     "Any Cancer: No",
+    "CHCCOPD3_1.0":     "COPD / Emphysema: Yes",
+    "CHCCOPD3_2.0":     "COPD / Emphysema: No",
+    "CHCKDNY2_1.0":     "Kidney Disease: Yes",
+    "CHCKDNY2_2.0":     "Kidney Disease: No",
+    "ADDEPEV3_1.0":     "Depressive Disorder: Yes",
+    "ADDEPEV3_2.0":     "Depressive Disorder: No",
+    "HAVARTH4_1.0":     "Arthritis: Yes",
+    "HAVARTH4_2.0":     "Arthritis: No",
+    "BLIND_1.0":        "Blind / Serious Vision Difficulty: Yes",
+    "BLIND_2.0":        "Blind / Serious Vision Difficulty: No",
+    "DECIDE_1.0":       "Difficulty Concentrating / Deciding: Yes",
+    "DECIDE_2.0":       "Difficulty Concentrating / Deciding: No",
+    "DIFFWALK_1.0":     "Difficulty Walking / Climbing Stairs: Yes",
+    "DIFFWALK_2.0":     "Difficulty Walking / Climbing Stairs: No",
+    "_RFHLTH_1.0":      "Good or Better Health (computed): Yes",
+    "_RFHLTH_2.0":      "Good or Better Health (computed): No",
+    "_TOTINDA_1.0":     "No Leisure-Time Physical Activity: Yes",
+    "_TOTINDA_2.0":     "No Leisure-Time Physical Activity: No",
+    "_RFSMOK3_1.0":     "Current Smoker (computed): Yes",
+    "_RFSMOK3_2.0":     "Current Smoker (computed): No",
+    "_RFBING6_1.0":     "Binge Drinker (computed): Yes",
+    "_RFBING6_2.0":     "Binge Drinker (computed): No",
+}
+
+def readable_feature(name: str) -> str:
+    """Return a human-readable label for a raw BRFSS feature name."""
+    return FEATURE_LABELS.get(name, name)
+
 # ── Loaders (cached) ───────────────────────────────────────────────────────────
 @st.cache_data(show_spinner="Loading survey data…")
 def load_clean() -> pd.DataFrame:
-    df = pd.read_csv(CLEAN_PATH, low_memory=False)
+    df = pd.read_csv(DASHBOARD_PATH, low_memory=False)
     df["_STATE"] = pd.to_numeric(df["_STATE"], errors="coerce")
     df["DIABETE4_bin"] = df["DIABETE4"].map(
         {"Yes": 1, "Yes_pregnant_only": 0, "No": 0, "No_prediabetes": 0}
@@ -73,7 +127,7 @@ def load_model():
 
 @st.cache_resource(show_spinner="Loading feature pipeline…")
 def load_pipeline():
-    return joblib.load(FEATURES_PATH)
+    return joblib.load(TRANSFORMER_PATH)
 
 # ── Sidebar navigation ─────────────────────────────────────────────────────────
 page = st.sidebar.radio(
@@ -321,13 +375,13 @@ else:
         st.plotly_chart(fig_gauge, width='stretch')
 
         # ── SHAP waterfall ─────────────────────────────────────────────────────
-        st.subheader("What's driving your score? (Top 5 factors)")
+        st.subheader("What's driving your score? (Top 10 factors)")
         explainer = shap.TreeExplainer(model)
         shap_vals = explainer.shap_values(X_input)[0]
-        top5_idx = np.argsort(np.abs(shap_vals))[::-1][:5]
+        top5_idx = np.argsort(np.abs(shap_vals))[::-1][:10]
 
         shap_df = pd.DataFrame({
-            "Feature": [feature_names[i] for i in top5_idx],
+            "Feature": [readable_feature(feature_names[i]) for i in top5_idx],
             "SHAP Value": [shap_vals[i] for i in top5_idx],
         })
         shap_df["Direction"] = shap_df["SHAP Value"].apply(
@@ -344,9 +398,9 @@ else:
             textposition="outside",
         ))
         fig_shap.update_layout(
-            title="SHAP Contribution of Top 5 Factors",
+            title="SHAP Contribution of Top 10 Factors",
             xaxis_title="SHAP Value (impact on risk score)",
-            height=320,
+            height=520,
             margin={"l": 160},
         )
         st.plotly_chart(fig_shap, width='stretch')
